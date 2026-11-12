@@ -112,12 +112,6 @@ pytest
 The trained weights are about 110 to 120 MB each and are not in this repo.
 The metrics from my run are in `results/`.
 
-## Limits
-
-- One run, one seed. I did not measure how much the numbers move between runs.
-- 1000 test images is small, and there is no outside test set from a different hospital or scanner.
-- The images are the downsized 224px MedMNIST version, not the original scans.
-- Heatmaps show where the model looked, which is not the same as proof that it reasoned correctly.
 
 ## Credits
 
