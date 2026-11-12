@@ -1,0 +1,13 @@
+[project]
+name = "oct-retinal-classifier"
+version = "2.0.0"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.2", "torchvision>=0.17", "numpy", "scikit-learn", "matplotlib", "opencv-python-headless", "pillow"]
+
+[tool.ruff]
+line-length = 110
+# the old notebook stays untouched
+extend-exclude = ["legacy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+data/
+runs/
+*.pt
+*.pth
+# big screen recordings stay out of git
+*.mp4
+*.mov
