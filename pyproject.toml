@@ -11,3 +11,5 @@ extend-exclude = ["legacy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# so plain `pytest` can import the octclf package
+pythonpath = ["."]
