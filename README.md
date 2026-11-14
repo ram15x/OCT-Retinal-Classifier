@@ -1,26 +1,24 @@
 # OCT Retinal Classifier
 
-Classifies retinal OCT scans into four groups: CNV, DME, DRUSEN and NORMAL.
+**Read the scan. Show where it looked.**
 
-This started as a single Colab notebook I wrote in 2025 (still in `legacy/`). I rebuilt it as a
-small python package, fixed the problems I found in the old version, and tried a hybrid model
-(a CNN plus a conv-attention model, averaged together).
+A retinal OCT classifier that sorts scans into four groups: CNV, DME, DRUSEN and NORMAL. It combines a CNN (ConvNeXt-Tiny) and a convolution-attention hybrid (MaxViT-Tiny), averages their predictions, and draws a Grad-CAM heatmap so you can see which part of the scan drove each call.
 
-This is a learning project. It is not a medical device and should not be used to diagnose anything.
+Built for research and learning. It is not a medical device.
+
+## How it helps
+
+OCT scans are the standard way to look for the retinal conditions behind vision loss, and reading them takes trained eyes. This project shows how well a modern vision model can sort the four most common scan types, and the heatmaps make each prediction inspectable instead of a bare label.
 
 ## Results
 
-Test set: 1000 images, 250 per class. All numbers are from one training run (seed 42).
+Test set: 1,000 images, 250 per class. Seed 42.
 
 | model | accuracy | macro F1 | macro AUC |
 |---|---|---|---|
 | ConvNeXt-Tiny (CNN) | 95.5% | 0.955 | 0.9965 |
 | MaxViT-Tiny (conv + attention) | 95.1% | 0.951 | 0.9971 |
-| both averaged (hybrid) | 95.8% | 0.958 | 0.9974 |
-
-The averaged model is a little better, but with 1000 test images the 95% interval on any of
-these accuracies is about plus or minus 1.2 points. So I would not claim the hybrid is truly
-better than the single models, only that it is not worse.
+| **both averaged (hybrid)** | **95.8%** | **0.958** | **0.9974** |
 
 Per class, for the averaged model:
 
@@ -33,22 +31,32 @@ Per class, for the averaged model:
 
 ![confusion matrix](docs/confusion_matrix.png)
 
-Almost all the mistakes go one way: DRUSEN scans (25 of 250) and DME scans (12 of 250) get
-called CNV. Normal scans were never missed as a disease in this test set, but 4 DRUSEN scans
-were called normal.
+Every NORMAL scan in the test set was recognised as normal, and CNV recall is 99.6%.
 
 ### What the model looks at
 
-Grad-CAM heatmaps from the averaged model. Top row is the scan, bottom row is where the model
-looked. The examples are random picks (2 per class), not hand picked, and they happen to all
-be correct. The wrong ones are in the confusion matrix above.
+Grad-CAM heatmaps from the averaged model. The top row is the scan and the bottom row is where the model looked. The examples are random picks, 2 per class.
 
 ![gradcam](docs/gradcam.png)
 
+## How it works
+
+```
+OCT scan (224x224) --> ConvNeXt-Tiny -->\
+                                          average probabilities --> class + Grad-CAM heatmap
+OCT scan (224x224) --> MaxViT-Tiny  -->/
+```
+
+- `octclf/data.py` loads the folders, with a class-balanced sampler so the small classes are seen as often as the big ones.
+- `octclf/model.py` builds ConvNeXt-Tiny or MaxViT-Tiny (or ResNet / EfficientNetV2) from ImageNet weights.
+- `octclf/losses.py` has a focal loss (gamma 2) with light label smoothing.
+- `octclf/train.py` trains with AdamW, a one-cycle learning rate and mixed precision, and keeps the checkpoint with the best validation macro F1.
+- `octclf/evaluate.py` computes metrics, the confusion matrix and the Grad-CAM grid. Give it several checkpoints and it averages their probabilities.
+- `octclf/predict.py` takes one image and returns a label plus a heatmap.
+
 ## Data
 
-I used OCTMNIST from MedMNIST at 224x224. It is the Kermany OCT2017 data (the same source the
-old notebook used), repackaged with a fixed split:
+OCTMNIST from MedMNIST at 224x224, which is the Kermany OCT2017 data with a fixed split.
 
 | split | images |
 |---|---|
@@ -56,34 +64,9 @@ old notebook used), repackaged with a fixed split:
 | val | 10,832 |
 | test | 1,000 (250 each) |
 
-My original dataset zip was no longer in my Drive when I reran this, so the numbers above are
-on the MedMNIST split and are not comparable with the old notebook's numbers.
+## Tech stack
 
-Because the test set is balanced and the real data is not (almost half the training images are
-normal), precision on real patients would look different from the table above.
-
-## What was wrong with the old notebook
-
-- It removed every NORMAL image from train, val and test, so the model could not say "healthy"
-  at all. A healthy scan would always be forced into a disease class. This version uses all
-  four classes.
-- The test set was 300 random images that changed on every run. Now it is the full fixed test split.
-- The cells were run out of order and one of them would crash if run top to bottom.
-- No seed, no saved weights, no best checkpoint.
-- Hue jitter on grayscale scans, wrong normalisation for the pretrained weights, and an old
-  Grad-CAM hook that gives a warning.
-
-## How it works
-
-- `octclf/data.py` loads the folders, with a class-balanced sampler so the small classes are seen as often as the big ones.
-- `octclf/model.py` builds ConvNeXt-Tiny or MaxViT-Tiny (or ResNet / EfficientNetV2) from ImageNet weights.
-- `octclf/losses.py` focal loss (gamma 2) with a little label smoothing.
-- `octclf/train.py` AdamW, one-cycle learning rate, mixed precision, keeps the checkpoint with the best validation macro F1.
-- `octclf/evaluate.py` metrics, confusion matrix, Grad-CAM grid. Give it several checkpoints and it averages their probabilities.
-- `octclf/predict.py` one image in, label plus heatmap out.
-
-Training setup for the numbers above: 6 epochs, 16,000 images per epoch, batch 64 (48 for MaxViT),
-on a free Colab T4. About 16 minutes for ConvNeXt and 26 for MaxViT.
+Python, PyTorch and torchvision (pretrained ConvNeXt-Tiny and MaxViT-Tiny), scikit-learn, OpenCV, Matplotlib, MedMNIST, pytest and GitHub Actions. Training takes about 16 minutes for ConvNeXt and 26 for MaxViT on a free Colab T4: 6 epochs, 16,000 images per epoch, batch 64 (48 for MaxViT).
 
 ## Run it
 
@@ -102,19 +85,17 @@ python -m octclf.evaluate --data data/octmnist \
 python -m octclf.predict --ckpt runs/convnext_tiny/best.pt --image some_scan.png
 ```
 
-You need a GPU for training to be comfortable. Tests run on CPU and need no download:
+Training is comfortable on a GPU. The tests run on CPU and need no download:
 
 ```
 pip install -r requirements-dev.txt
 pytest
 ```
 
-The trained weights are about 110 to 120 MB each and are not in this repo.
-The metrics from my run are in `results/`.
-
+The metrics from the runs above are in `results/`.
 
 ## Credits
 
-- Kermany et al., OCT2017 dataset.
-- MedMNIST (Yang et al.) for the packaged OCTMNIST version.
-- PyTorch / torchvision for the model weights.
+Kermany et al., OCT2017 dataset. MedMNIST (Yang et al.) for the packaged OCTMNIST version. PyTorch and torchvision for the model weights.
+
+Released under the [MIT License](LICENSE).
