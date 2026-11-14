@@ -6,8 +6,6 @@ dependencies = ["torch>=2.2", "torchvision>=0.17", "numpy", "scikit-learn", "mat
 
 [tool.ruff]
 line-length = 110
-# the old notebook stays untouched
-extend-exclude = ["legacy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

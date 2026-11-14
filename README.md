@@ -98,4 +98,8 @@ The metrics from the runs above are in `results/`.
 
 Kermany et al., OCT2017 dataset. MedMNIST (Yang et al.) for the packaged OCTMNIST version. PyTorch and torchvision for the model weights.
 
+## More
+
+Notes on the results and on running it: [docs/notes.md](docs/notes.md).
+
 Released under the [MIT License](LICENSE).
